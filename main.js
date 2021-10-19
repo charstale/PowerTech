@@ -1,7 +1,7 @@
 ///------------define------
 const Session = require("./session")
 const Bridge = require("./bridge")
-const ToolBox = require("./delivery")
+const ToolBox = require("./tools")
 
 
 //--------------------test
@@ -20,7 +20,7 @@ class Framework {
     static async build() {
         return new Framework(_client, _page)
     }
-    async handlArgvs() {
+    async main() {
         let args = process.argv.splice(2)
 
 
@@ -64,8 +64,13 @@ class Framework {
         }
         for (let _user of _users) {
 
-            let _rlt = await ToolBox.getUserInfo(_user.cookies)
-            if (_rlt) {
+            // let _rlt = await ToolBox.getUserInfo(_user.cookies)
+            // if (_rlt) {
+            console.log("=========================================");
+            console.log(`【${_user.realname}】开始学习`);
+            let _remains = ToolBox.parseExpires(_user.cookies)
+            console.log(`剩余${_remains}小时`);
+            if (_remains > 0) {
                 await this.runSession(_user)
 
             } else {
@@ -76,22 +81,39 @@ class Framework {
     }
 
     async runSession(user) {
+
         let _session = await Session.build(user)
+        let _cookies = await _session.getCookies()
+
+
+        _session.on("evt_alnindex_updated", (index) => {
+            if (index) {
+                this.dbBridge.saveArticleLinkIndex(user.userid, index)
+            }
+        })
+
+        _session.on("evt_cookies_updated", (cookies) => {
+            if (cookies) {
+                this.dbBridge.updateCookie(user.userid, cookies)
+            }
+        })
+
 
         let _current = await ToolBox.getCurrentScores(user.cookies)
         console.log(_current)
 
+        ///------------------------------
 
         let _linkpos = await this.dbBridge.readArticleLinkIndex(user.userid)
-        let _aLinkGen = ToolBox.getArticleLinks(_linkpos)
-        let _index = await _session.readArticle(_aLinkGen)
-        await this.dbBridge.saveArticleLinkIndex(user.userid, _index)
+        await _session.readArticle(_linkpos)
+        await _session.watchVideo()
+        ///------------------------------
+        await _session.quizDaily()
 
-        let _vLinkGen = ToolBox.getVideoLinks()
-        await _session.watchVideo(_vLinkGen)
-        let _cookies = await _session.getCookies()
 
-        this.dbBridge.updateCookie(user.userid, _cookies)
+        // _cookies = await _session.getCookies()
+        // this.dbBridge.updateCookie(user.userid, _cookies)
+        console.log("----------------------------------------");
         console.log(`【${user.realname}】学习任务完成`);
         await _session.terminate()
     }
@@ -110,11 +132,14 @@ class Framework {
     async addUser() {//ok
 
         let _cookies = await Session.login()
+        if (!_cookies) {
+            console.log("登录失败，cookies获取失败");
+            return null
+        }
         let { userid: _userid, realname: _realname } = await ToolBox.getUserInfo(_cookies)
 
         await this.dbBridge.saveUser(_userid, _realname, _cookies)
 
-        console.log("-------------");
 
     }
 
@@ -126,6 +151,6 @@ class Framework {
 
 (async () => {
     let frame = new Framework()
-    await frame.handlArgvs()
+    await frame.main()
 
 })()

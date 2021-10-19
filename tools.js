@@ -91,23 +91,7 @@ class Tools {
     }
   }
 
-  async refreshQr() {
-    try {
-      await this.page.click("#app > div > div.layout-body > div.qrcode-box > div.ddloginbox > span")
 
-      let _resp = await page.waitForRequest('https://login.xuexi.cn/user/qrcode/generate');
-      let { success: _success } = _resp.json()
-      if (_success) {
-        console.log("二维码刷新成功");
-        return true
-      }
-      console.log("二维码刷新失败");
-      return false
-    } catch (e) {
-      console.log("二维码刷新失败 " + e.message);
-      return false
-    }
-  }
   static async getTotalScore(cookies) {
     try {
 
@@ -146,7 +130,8 @@ class Tools {
     }
   }
   static async getCurrentScores(cookies) {
-    while (true) {
+    // while (true) {
+    for (let x = 5; x > 0; x++) {
       try {
 
         let _cookieStr = this.cookieFromJson(cookies)
@@ -193,6 +178,18 @@ class Tools {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
 
+  static parseExpires(cookies) {
+    for (let _elem of cookies) {
+      if (_elem.name == "token") {
+        let _expires = _elem.expires
+        let _now = Date.now() / 1000
+
+        let _remains = (_expires - _now) / 3600
+
+        return _remains.toFixed(2)
+      }
+    }
+  }
 
 }
 

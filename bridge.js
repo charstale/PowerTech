@@ -35,7 +35,8 @@ class Bridge {
           userid: elem["userid"],
           realname: elem["realname"],
           articleLinkPos: elem["articleLinkPos"],
-          cookies: elem["cookie"]
+          cookies: elem["cookie"],
+
         }
       })
     }
@@ -44,7 +45,7 @@ class Bridge {
 
   async updateCookie(userid, cookies) {
     await dbUsers.update({
-      "cookies": cookies
+      "cookie": cookies
     }, {
       "where": {
         "userid": userid

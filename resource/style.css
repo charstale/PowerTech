@@ -1,0 +1,80 @@
+
+.movetitle {
+    width: 280px;
+    height: 99px;
+    background-size: contain;
+    top: 85px;
+    left: 360px
+}
+
+.moveword {
+    width: 800px;
+    position: absolute;
+    top: 235px;
+    left: 120px;
+    font: normal 30px/180% Microsoft Yahei;
+    text-align: justify;
+    color: #ffd71f;
+    text-indent: 2em
+}
+
+.moveword span {
+    letter-spacing: 1.5px
+}
+
+.movetextbox {
+    width: 100%
+}
+
+.fadeindown {
+    position: absolute;
+    top: 0;
+    animation-name: fademove;
+    animation-duration: 13s;
+    -webkit-animation-duration: 13s;
+    animation-fill-mode: both
+}
+
+@keyframes fademove {
+    0% {
+        top: 100%;
+        opacity: 0
+    }
+
+    to {
+        opacity: 1;
+        top: 0
+    }
+}
+
+.qrcode-box {
+    margin-bottom: 60px
+}
+
+.qrcode-box.qrcode-only .ddlogintext {
+    color: #fff
+}
+
+.qrcode-box .ddloginbox {
+    width: 400px;
+    min-width: 400px;
+    height: 266px;
+    margin: 0 auto;
+    position: relative
+}
+
+.qrcode-box .ddloginbox .refresh {
+    cursor: pointer;
+    color: #2db7f5;
+    position: absolute;
+    bottom: 12px;
+    left: 615px;
+    font-size: 20px
+}
+
+.qrcode-box .ddlogintext {
+    margin: 0 auto;
+    text-align: center;
+    font-size: 24px
+}
+
