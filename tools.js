@@ -1,4 +1,5 @@
 const axios = require("axios");
+const pickle = require("pickle")
 axios.defaults.withCredentials = true;
 
 
@@ -65,13 +66,89 @@ class Tools {
     }
   }
 
+  static getWeekPractices = async function* (cookies) {
+    let _cookieStr = this.cookieFromJson(cookies)
+
+    let _pageNo = 1
+    while (true) {
+
+      let _url = `https://pc-proxy-api.xuexi.cn/api/exam/service/practice/pc/weekly/more?pageSize=50&pageNo=${_pageNo}`
+
+
+
+      let { data: { data_str: _dataStr } } = await axios.get(_url,
+        // let _dataStr = await axios.get(_url,
+        {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Cookie': _cookieStr
+          }
+        })
+
+
+      // let _resp = await this.page.waitForResponse(_url, { timeout: 20 * 1000 });
+      // let _dataStr = await _resp.json()
+      let _json = pickle.loadBase64(_dataStr)
+      let _pageCount = _json["totalPageCount"]
+
+      let _list = _json["list"]
+
+      // let _all = []
+      for (let _month of _list) {
+        // _all.concat(_month.practices)
+        for (let _p of _month.practices) {
+          if (_p.status == 1) {
+            yield _p
+          }
+        }
+      }
+      if (_pageNo == _pageCount) {
+        throw new error("no week practices avalible")
+      } else {
+        _pageNo += 1
+      }
+    }
+  }
+
+  static getEarmrkedPractices = async function* (cookies) {
+    let _cookieStr = this.cookieFromJson(cookies)
+
+    let _pageNo = 1
+    while (true) {
+
+      let _url = `https://pc-proxy-api.xuexi.cn/api/exam/service/paper/pc/list?pageSize=50&pageNo=${1}`
+
+      let { data: { data_str: _dataStr } } = await axios.get(_url,
+        {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Cookie': _cookieStr
+          }
+        })
+
+      let _json = pickle.loadBase64(_dataStr)
+      let _pageCount = _json["totalPageCount"]
+
+      let _list = _json["list"]
+
+      for (let _p of _list) {
+          if (_p.status == 1) {
+            yield _p
+        }
+      }
+      if (_pageNo == _pageCount) {
+        throw new error("no earmarked practices avalible")
+      } else {
+        _pageNo += 1
+      }
+    }
+  }
   static async getUserInfo(cookies) {
     try {
 
       let _cookieStr = this.cookieFromJson(cookies)
       let _url = "https://pc-api.xuexi.cn/open/api/user/info"
       let { data: { data: { nick: _realname, uid: _userid } } } = await axios.get(_url,
-
         {
           headers: {
             'Cache-Control': 'no-cache',
@@ -129,7 +206,7 @@ class Tools {
       console.log("get_today_score 获取失败" + e.message)
     }
   }
-  static async getCurrentScores(cookies) {
+  static async getCurrentScores_bak(cookies) {
     // while (true) {
     for (let x = 5; x > 0; x++) {
       try {
@@ -157,16 +234,60 @@ class Tools {
         return _scores
       } catch (e) {
         console.log("获取分数详情失败，停1秒 " + e.message);
-        await this.sleep(1000)
+        // await this.sleep(1000)
       }
-    }
-  }
 
+    }
+    throw new error("cant acquire score")
+  }
+  static async getCurrentScores(cookies) {
+    // while (true) {
+    for (let x = 5; x > 0; x++) {
+      try {
+
+        let _cookieStr = this.cookieFromJson(cookies)
+        let _url = "https://pc-proxy-api.xuexi.cn/api/score/days/listScoreProgress?sence=score&deviceType=2"
+        let { data: { data: { taskProgress: _detail } } } = await axios.get(_url,
+          // let _detail = await axios.get(_url,
+          {
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Cookie': _cookieStr
+            }
+          })
+
+
+        let _detailClean = _detail.map((elem) => {
+          return {
+            title: elem["title"],
+            currentScore: elem["currentScore"],
+            dayMaxScore: elem["dayMaxScore"],
+          }
+        })
+
+        let _scores = {
+          "article": _detailClean[0],
+          "videoCum": _detailClean[1],
+          "login": _detailClean[4],
+          "videoSus": _detailClean[3],
+          "quizDaily": _detailClean[6],
+          "quizWeekly": _detailClean[2],
+          "quizEarmarked": _detailClean[5]
+        }
+        return _scores
+      } catch (e) {
+        console.log("获取分数详情失败，停2秒 " + e.message);
+        await this.sleep(2000)
+      }
+
+    }
+    throw new error("cant acquire score")
+  }
 
   static cookieFromJson(jsonCookie) {
     let _arr = []
     for (let _elem of jsonCookie) {
-      _arr.push(`${_elem['name']} = ${_elem['value']}`)
+      _arr.push(`${_elem['name']}=${_elem['value']}`)
     }
     let _cookieStr = _arr.join(";")
 

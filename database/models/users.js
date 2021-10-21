@@ -12,24 +12,35 @@ const { Sequelize, sequelize } = require("../init")
 const TableUsers = sequelize.define('users', {
   userid: { type: Sequelize.STRING, primaryKey: true },
   realname: { type: Sequelize.STRING },
-  articleLinkPos: { type: Sequelize.STRING },
-  cookie: { type: Sequelize.STRING ,
-  get() {
-    let _raw = this.getDataValue("cookie")
-    if (_raw) {
-      return pickle.loadBase64(_raw)
-    } else {
-      return null
+  articleLinkPos: {
+    type: Sequelize.STRING,
+    get() {
+      let _raw = this.getDataValue("articleLinkPos")
+      if (!_raw) {
+        return 0
+      }else{
+        return _raw
+      }
     }
   },
-  set(val) {
-    if (val) {
-      this.setDataValue("cookie", pickle.dumpBase64(val))
-    } else {
-      this.setDataValue("cookie", null)
+  cookie: {
+    type: Sequelize.STRING,
+    get() {
+      let _raw = this.getDataValue("cookie")
+      if (_raw) {
+        return pickle.loadBase64(_raw)
+      } else {
+        return null
+      }
+    },
+    set(val) {
+      if (val) {
+        this.setDataValue("cookie", pickle.dumpBase64(val))
+      } else {
+        this.setDataValue("cookie", null)
+      }
     }
   }
-}
 },
 
   {

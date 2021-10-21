@@ -4,7 +4,7 @@ const Sequelize = require('sequelize');
 const sequelize = new Sequelize({
   host: 'localhost',
   dialect: 'sqlite',
-  /// logging: false,///不显示SQL语句
+  logging: false,///不显示SQL语句
 
   pool: {
     max: 5,

@@ -3,22 +3,23 @@ const Events = require("events")
 const ToolBox = require("./tools")
 const fs = require("fs")
 
+const pickle = require("pickle")
 var rm = require('rimraf');
 const { v4: uuidv4 } = require('uuid');
 
 
 
 
-const Scorelimit = {
-    articleCum: 6,  /// 阅读文章
-    videoCum: 6,  /// 观看视频
-    articleSus: 6,  /// 文章时长
-    videoSus: 6,  /// 视频时长
-    login: 1,  /// 每日登陆
-    quizDaily: 5,  /// 每日答题
-    quizWeekly: 5,  /// 每周答题
-    quizEarmarked: 10, /// 专项答题
-}
+// const Scorelimit = {
+//     articleCum: 6,  /// 阅读文章
+//     videoCum: 6,  /// 观看视频
+//     articleSus: 6,  /// 文章时长
+//     videoSus: 6,  /// 视频时长
+//     login: 1,  /// 每日登陆
+//     quizDaily: 5,  /// 每日答题
+//     quizWeekly: 5,  /// 每周答题
+//     quizEarmarked: 10, /// 专项答题
+// }
 
 
 class Session extends Events {
@@ -37,12 +38,10 @@ class Session extends Events {
         this.page.on('response', async (_resp) => {
 
             if (_resp.url().startsWith('https://pc-api.xuexi.cn/open/api/auth/check')) {
-                console.log("更新cookie");
+                // console.log("更新cookie");
                 let _cookies = await this.page.cookies()
-
-                let _remains = ToolBox.parseExpires(_cookies)
-
-                console.log(`剩余${_remains}小时`);
+                // let _remains = ToolBox.parseExpires(_cookies)
+                // console.log(`剩余${_remains}小时`);
 
                 this.user.cookies = _cookies  ///更新当前对象cookie
                 this.emit("evt_cookies_updated", _cookies)  ///cookie存数据库
@@ -88,65 +87,61 @@ class Session extends Events {
 
 
     async readArticle(lnkIndex) {
-        // let _index = null
         let _aLinkGen = ToolBox.getArticleLinks(lnkIndex)
-        for await (let _link of _aLinkGen) {
 
 
-
-
-
+        while (true) {
+            let _num = 6
             let _current = await ToolBox.getCurrentScores(this.user.cookies)
+
             console.log(_current)
-            if (_current["articleCum"] >= Scorelimit["articleCum"]) {
+            if (_current.article["currentScore"] >= _current.article["dayMaxScore"]) {
 
-                console.log("文章数量分数已满")
-            }
-            if (_current["articleSus"] >= Scorelimit["articleSus"]) {
-
-                console.log("文章时间分数已满")
-            }
-
-            if ((_current["articleCum"] >= Scorelimit["articleCum"]) & (_current["articleSus"] >= Scorelimit["articleSus"])) {
-                console.log("检测到文章分数已满,退出文章操作 ")
+                console.log("文章分数已满")
                 break
             }
 
-            let _index = _link.pos
 
-            this.emit("evt_alnindex_updated", _index)
-            await this.page.goto(_link.url)
-            await ToolBox.sleep(1500)
-            let _readTime = 65 + Math.floor(Math.random() * 35)
-            // let _maxScrollTimes=2+Math.floor(Math.random()*4)
-            let _ypos = 400
 
-            let _maxScrollPos = await this.page.evaluate(() => {
-                return document.body.scrollHeight - 1400
-            })
+            // for await (let _link of _aLinkGen) {
+            // let _link = 0
+            for (let _x = _num; _x > 0; _x--) {
 
-            let _count = 0
-            if (_ypos < _maxScrollPos) {
-                _count += 1
-                _ypos += 100
+                let _link = await _aLinkGen.next()
+
+                this.emit("evt_alnindex_updated", _link.value["pos"])
+                await this.page.goto(_link.value["url"])
+                await ToolBox.sleep(1500)
+                let _readTime = 65 + Math.floor(Math.random() * 35)
+                // let _maxScrollTimes=2+Math.floor(Math.random()*4)
+                let _ypos = 400
+
+                let _maxScrollPos = await this.page.evaluate(() => {
+                    return document.body.scrollHeight - 1400
+                })
+
+                let _count = 0
+                if (_ypos < _maxScrollPos) {
+                    _count += 1
+                    _ypos += 100
+                    await this.page.evaluate((_ypos) => {
+
+                        window.scrollTo(0, _ypos)
+
+                    }, _ypos)
+
+                    await ToolBox.sleep(2000)
+                    ///剩余多少秒
+                }
+
+                _ypos = _maxScrollPos * 3 / 4
                 await this.page.evaluate((_ypos) => {
-
                     window.scrollTo(0, _ypos)
-
                 }, _ypos)
+                await ToolBox.sleep((_readTime - _count * 2) * 1000)
 
-                await ToolBox.sleep(2000)
-                ///剩余多少秒
             }
-
-            _ypos = _maxScrollPos * 3 / 4
-            await this.page.evaluate((_ypos) => {
-                window.scrollTo(0, _ypos)
-            }, _ypos)
-            await ToolBox.sleep((_readTime - _count * 2) * 1000)
-
         }
-
         // return _index
 
     }
@@ -155,37 +150,47 @@ class Session extends Events {
     async watchVideo() {
 
         let _vLinkGen = ToolBox.getVideoLinks()
-        for await (let _url of _vLinkGen) {
+
+        while (true) {
+            let _num = 6
             let _current = await ToolBox.getCurrentScores(this.user.cookies)
-            console.log(_current);
-            if (_current["videoCum"] >= Scorelimit["videoCum"]) {
+
+            console.log(_current)
+
+            if (_current["videoCum"]["currentScore"] >= _current["videoCum"]["dayMaxScore"]) {
 
                 console.log("视频数量分数已满")
             }
-            if (_current["videoSus"] >= Scorelimit["videoSus"]) {
+            if (_current["videoSus"]["currentScore"] >= _current["videoSus"]["dayMaxScore"]) {
 
                 console.log("视频时间分数已满")
             }
 
-            if ((_current["videoCum"] >= Scorelimit["videoCum"]) & (_current["videoSus"] >= Scorelimit["videoSus"])) {
-                console.log("检测到视频分数已满,退出视频操作 ")
+            if ((_current["videoCum"]["currentScore"] >= _current["videoCum"]["dayMaxScore"]) & (_current["videoSus"]["currentScore"] >= _current["videoSus"]["dayMaxScore"])) {
+                console.log("视频分数已满,退出视频操作 ")
                 break
             }
-            await this.page.goto(_url)
-            await ToolBox.sleep(1000)
-            let _readTime = 65 + Math.floor(Math.random() * 35)
 
-            await this.page.evaluate(() => {
-                window.scrollTo(0, 400)
-            })
-            await ToolBox.sleep(_readTime * 1000)
+            for (let _x = _num; _x > 0; _x--) {
+
+                let _link = await _vLinkGen.next()
+
+                await this.page.goto(_link.value)
+                await ToolBox.sleep(1000)
+                let _readTime = 65 + Math.floor(Math.random() * 35)
+
+                await this.page.evaluate(() => {
+                    window.scrollTo(0, 400)
+                })
+                await ToolBox.sleep(_readTime * 1000)
+            }
         }
     }
 
     async quizDaily() {
 
         let _current = await ToolBox.getCurrentScores(this.user.cookies)
-        if (_current["quizDaily"] >= Scorelimit["quizDaily"]) {
+        if (_current["quizDaily"]["currentScore"] >= _current["quizDaily"]["dayMaxScore"]) {
 
             console.log("每日答题分数已满，退出每日答题")
             return
@@ -197,13 +202,15 @@ class Session extends Events {
             await ToolBox.sleep(2000)
         }
 
+        // await this.page.waitForSelector("#app > div > div.layout-body > div > div.my-points-section > div.my-points-content > div:nth-child(5) > div.my-points-card-footer > div.buttonbox > div")
 
+        // await this.page.click("#app > div > div.layout-body > div > div.my-points-section > div.my-points-content > div:nth-child(5) > div.my-points-card-footer > div.buttonbox > div")
 
-        await this.page.click("#app > div > div.layout-body > div > div.my-points-section > div.my-points-content > div:nth-child(5) > div.my-points-card-footer > div.buttonbox > div")
+        this.page.goto("https://pc.xuexi.cn/points/exam-practice.html")
 
+        let _url = "https://pc-proxy-api.xuexi.cn/api/exam/service/common/deduplicateRandomSearchV3?limit=5&activityCode=QUIZ_ALL&forced=true"
+        let _answers = await this.getAnswers(_url)
 
-        let _answers = await this.getAnswers()
-        // await this.page.waitForNavigation({ waitUntil: 'load' })
         await ToolBox.sleep(5000)
         for (let _an of _answers) {
             // if(_an[0] in "ABCD"){
@@ -236,25 +243,20 @@ class Session extends Events {
     }
 
 
-    async getAnswers() {
+    async getAnswers(url) {
 
 
-        // ToolBox.sleep(10 * 1000)
-
-        // while (this.page.url().startsWith("https://pc.xuexi.cn/points/exam-practice.html")) {
-        while (true) {
-            // for(let w =5;w>0;w--){
+        // while (true) {
+        for (let w = 5; w > 0; w--) {
             try {
-                let _url = "https://pc-proxy-api.xuexi.cn/api/exam/service/common/deduplicateRandomSearchV3?limit=5&activityCode=QUIZ_ALL&forced=true"
-                let resp = await this.page.waitForResponse(_url, { timeout: 20 * 1000 });
+                let resp = await this.page.waitForResponse(url, { timeout: 20 * 1000 });
                 if (resp.request().method() != "GET") {
                     console.log("option 请求，跳过");
                     continue
                 }
                 let { data_str: _encodeStr } = await resp.json()
-                let _decodeStr = new Buffer.from(_encodeStr, 'base64').toString();
-                // console.log(_decodeStr);
-                let { questions: _questions } = JSON.parse(_decodeStr)
+                // let _decodeStr = new Buffer.from(_encodeStr, 'base64').toString();
+                let { questions: _questions } = pickle.loadBase64(_encodeStr)
 
                 let _answers = []
                 for (let _question of _questions) {
@@ -265,7 +267,6 @@ class Session extends Events {
 
                     _answers.push(_answer)
                 }
-
 
                 for (let _an of _answers) {
                     if (!_an[0]) {
@@ -287,9 +288,90 @@ class Session extends Events {
             }
         }
 
+        throw new error("cant get answers")
+
     }
 
+    async quizWeek() {
 
+        let _wPracticeGen = ToolBox.getWeekPractices(this.user.cookies)
+
+        let { value: _practice } = await _wPracticeGen.next()
+
+        let _id = _practice.id
+        this.page.goto(`https://pc.xuexi.cn/points/exam-weekly-detail.html?id=${_id}`)
+
+        let _url = `https://pc-proxy-api.xuexi.cn/api/exam/service/detail/queryV3?type=2&id=${_id}&forced=true`
+        let _answers = await this.getAnswers(_url)
+
+        await ToolBox.sleep(5000)
+        for (let _an of _answers) {
+
+            await ToolBox.sleep(10 * 1000)
+
+
+            if ("ABCD".indexOf(_an[0]) != -1) {
+                console.log("选择题");
+
+                for (let _s of _an) {
+
+                    let _i = "ABCD".indexOf(_s) + 1
+                    await this.page.click(`#app > div > div.layout-body > div > div.detail-body > div.question > div.q-answers > div:nth-child(${_i})`)
+                    await ToolBox.sleep(500)
+                }
+
+            } else if (_an[0] != null) {
+                console.log("填空题");
+                await this.page.type('#app > div > div.layout-body > div > div.detail-body > div.question > div.q-body > div > input', _an[0], { delay: 200 });
+                await ToolBox.sleep(300)
+            }
+
+            await ToolBox.sleep(2000)
+            await this.page.click("#app > div > div.layout-body > div > div.detail-body > div.action-row > button")
+        }
+
+        await ToolBox.sleep(10 * 1000)
+
+    }
+    async quizEarmarked() {
+
+        let _wPracticeGen = ToolBox.getWeekPractices(this.user.cookies)
+
+        let { value: _practice } = await _wPracticeGen.next()
+
+        let _id = _practice.id
+        this.page.goto(`https://pc.xuexi.cn/points/exam-paper-detail.html?id=${_id}`)
+
+        let _url = `https://pc-proxy-api.xuexi.cn/api/exam/service/detail/queryV3?type=1&id=${_id}&forced=true`
+        let _answers = await this.getAnswers(_url)
+
+        await ToolBox.sleep(5000)
+        for (let _an of _answers) {
+
+            await ToolBox.sleep(10 * 1000)
+            if ("ABCD".indexOf(_an[0]) != -1) {
+                console.log("选择题");
+
+                for (let _s of _an) {
+
+                    let _i = "ABCD".indexOf(_s) + 1
+                    await this.page.click(`#app > div > div.layout-body > div > div.detail-body > div.question > div.q-answers > div:nth-child(${_i})`)
+                    await ToolBox.sleep(500)
+                }
+
+            } else if (_an[0] != null) {
+                console.log("填空题");
+                await this.page.type('#app > div > div.layout-body > div > div.detail-body > div.question > div.q-body > div > input', _an[0], { delay: 200 });
+                await ToolBox.sleep(300)
+            }
+
+            await ToolBox.sleep(2000)
+            await this.page.click("#app > div > div.layout-body > div > div.detail-body > div.action-row > button")
+        }
+
+        await ToolBox.sleep(10 * 1000)
+
+    }
     async terminate() {
         console.log("浏览器关闭");
         await this.client.close()
@@ -378,6 +460,7 @@ class Session extends Events {
 
 
         while (true) {
+            // for (let _x = 4; _x > 0; _x--) {
             try {
                 let resp = await _page.waitForResponse('https://login.xuexi.cn/login/login_with_qr',
                     { timeout: 10000 });
@@ -389,10 +472,6 @@ class Session extends Events {
                     break
                 }
             } catch (e) {
-
-
-
-                // console.log(e.message);
 
                 if (e.message == "Target closed") {
                     console.log("浏览器已关闭");
@@ -418,15 +497,13 @@ class Session extends Events {
         for (let w = 5; w > 0; w--) {
 
             try {
-                let _resp = await _page.waitForResponse("https://pc-api.xuexi.cn/open/api/auth/check", { timeout: 5000 });
+                await _page.waitForResponse("https://pc-api.xuexi.cn/open/api/auth/check", { timeout: 5000 });
                 // console.log(_resp.url());
                 _cookies = await _page.cookies()
                 if (valid(_cookies)) {
 
                     break
                 }
-
-
 
             } catch (e) {
                 console.log("验证权限失败 " + e.message);
@@ -472,21 +549,6 @@ class Session extends Events {
     }
 }
 
-
-
-
-// (async () => {
-//     let session = await Session.build()
-//     await session.run()
-//     await session.terminate()
-// })()
-
-// foo()
-
-// async function foo () {
-//     let framework=await Frame.build()
-// framework.run()
-// }
 
 
 

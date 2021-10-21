@@ -2,21 +2,11 @@
 const dbUsers = require("./database/models/users")
 
 
-
-
-
-
-
-
-
-
 class Bridge {
 
   constructor() {
     // this.cookies = cookies
   }
-
-
 
   async getUsers(simple) {
 
@@ -87,9 +77,6 @@ class Bridge {
       console.log("删除失败 " + e.message);
     }
   }
-
-
-
 
   async saveUser(userid, realname, cookies) {
 
