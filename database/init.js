@@ -13,7 +13,6 @@ const sequelize = new Sequelize({
     idle: 10000
   },
   storage: './local.sqlite',
-  // operatorsAliases: false,
   define: {
     freezeTableName: false,
     timestamps: false

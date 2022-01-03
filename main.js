@@ -1,9 +1,12 @@
 ///------------define------
-const Session = require("./session")
+const Puppy = require("./puppy")
 const Bridge = require("./bridge")
 const ToolBox = require("./tools")
+const exec = require('child-process-promise').exec
 
+// const { getDevices, empower } = require("./empower")
 //--------------------test
+
 
 class Framework {
     constructor(client, page) {
@@ -29,6 +32,10 @@ class Framework {
                 case "-a":
                     await this.addUser()
                     break
+                // case "--fetch":
+                // case "-f":
+                //     await this.fetchUser()
+                //     break
                 case "--delete":
                 case "-d":
                     await this.deleteUser(args[1])
@@ -57,6 +64,9 @@ class Framework {
 
     async run() {
 
+        try {
+            await exec("taskkill -f -im dnplayer.exe")
+        } catch (e) { console.log(e.message); }
         let _users = await this.dbBridge.getUsers()
         if (!_users) {
             console.log("数据库中没有用户");
@@ -64,83 +74,34 @@ class Framework {
         }
         for (let _user of _users) {
 
+            let _session = await Puppy.build(_user)
+            let _processed=await _session.run().catch((e) => { console.log(e.message); })
+            await _session.terminate(_processed).catch((e) => { console.log(e.message); })
 
-            console.log("=========================================");
-            console.log(`【${_user.realname}】开始学习`);
-            let _remains = ToolBox.parseExpires(_user.cookies)
-            console.log(`剩余${_remains}小时`);
-            if (_remains > 0) {
-                await this.runSession(_user)
-
-            } else {
-                console.log("用户cookie无效或已过期,请重新登陆");
-            }
         }
     }
 
-    async runSession(user) {
-
-        let _session = await Session.build(user)
-
-        try {
-            _session.on("evt_alnindex_updated", (index) => {
-                if (index) {
-                    this.dbBridge.saveArticleLinkIndex(user.userid, index)
-                }
-            })
-
-            _session.on("evt_cookies_updated", (cookies) => {
-                if (cookies) {
-                    this.dbBridge.updateCookie(user.userid, cookies)
-                }
-            })
-
-            let _current = await ToolBox.getCurrentScores(user.cookies)
-            console.log(_current)
-
-            ///------------------------------
-
-            let _linkpos = await this.dbBridge.readArticleLinkIndex(user.userid)
-            await _session.readArticle(_linkpos)
-            await _session.watchVideo()
-            await _session.quizDaily()
-            await _session.quizWeek()
-            await _session.quizEarmarked()
-            ///------------------------------
-        } catch (e) {
-            console.log("退出 " + e.message);
-        }
-        let _current = await ToolBox.getCurrentScores(user.cookies)
-        console.log(_current)
-        await _session.quizWeek()
-        console.log("----------------------------------------");
-        console.log(`【${user.realname}】学习任务完成`);
-        await _session.terminate()
-    }
 
 
-    async listUsers() {//
+    async listUsers() {
 
-        let _dis = await this.dbBridge.getUsers(true)
+        let _dis = await this.dbBridge.getUsers()
         console.log(_dis);
     }
-    async showScore() {//
+    async addUser() {
+        let _session = await Puppy.buildLogin()
+        _session.on("evt_got_cookie", async (cookies) => {
+            if (cookies) {
 
-    }
-    async addUser() {//ok
-
-        let _cookies = await Session.login()
-        if (!_cookies) {
-            console.log("登录失败，cookies获取失败");
-            return null
-        }
-        let { userid: _userid, realname: _realname } = await ToolBox.getUserInfo(_cookies)
-
-        await this.dbBridge.saveUser(_userid, _realname, _cookies)
+                let { userid: _userid, realname: _realname } = await ToolBox.getUserInfo(cookies)
+                await this.dbBridge.saveUser(_userid, _realname, cookies)
+            }
+        })
+        await _session.goLoginPage()
+        await _session.terminate()
 
 
     }
-
 
 }
 

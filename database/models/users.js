@@ -1,5 +1,5 @@
 
-const pickle = require("pickle")
+const pickle = require("../../pickle")
 const { Sequelize, sequelize } = require("../init")
 
 
@@ -12,17 +12,6 @@ const { Sequelize, sequelize } = require("../init")
 const TableUsers = sequelize.define('users', {
   userid: { type: Sequelize.STRING, primaryKey: true },
   realname: { type: Sequelize.STRING },
-  articleLinkPos: {
-    type: Sequelize.STRING,
-    get() {
-      let _raw = this.getDataValue("articleLinkPos")
-      if (!_raw) {
-        return 0
-      }else{
-        return _raw
-      }
-    }
-  },
   cookie: {
     type: Sequelize.STRING,
     get() {
@@ -40,7 +29,26 @@ const TableUsers = sequelize.define('users', {
         this.setDataValue("cookie", null)
       }
     }
-  }
+  },
+  score: {
+    type: Sequelize.STRING,
+    get() {
+      let _raw = this.getDataValue("score")
+      if (_raw) {
+        return pickle.loadBase64(_raw)
+      } else {
+        return null
+      }
+    },
+    set(val) {
+      if (val) {
+        this.setDataValue("score", pickle.dumpBase64(val))
+      } else {
+        this.setDataValue("score", null)
+      }
+    }
+  },
+  updateTime: { type: Sequelize.STRING },
 },
 
   {

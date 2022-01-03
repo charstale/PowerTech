@@ -1,13 +1,23 @@
 const axios = require("axios");
-const pickle = require("pickle")
+const pickle = require("./pickle");
+const Bridge = require("./bridge");
 axios.defaults.withCredentials = true;
+
+
+const HttpsProxyAgent = require("https-proxy-agent");
+
+
 
 
 
 
 class Tools {
   constructor() { }
-  static getArticleLinks = async function* (pos) {
+
+
+
+
+  static getArticleLinks_bak = async function* (pos) {
     let _url = "https://www.xuexi.cn/c06bf4acc7eef6ef0a560328938b5771/data9a3668c13f6e303932b5e0e100fc248b.js"
     let _resp = await axios.get(_url)
 
@@ -30,7 +40,38 @@ class Tools {
 
   }
 
-  static getVideoLinks = async function* () {
+  static videoLink = async function* () {
+
+  }
+
+  static async isValidItem(itemId) {
+
+    let _url = `https://boot-source.xuexi.cn/data/app/${itemId}.js`
+
+    try {
+      let _resp = await axios.get(_url)
+      if (!_resp) { return false }
+      if (_resp.status == 200) {
+        return true
+      }
+      console.log("item无效");
+      return false
+    } catch (e) {
+
+      if (e.message.indexOf("404") > 0) {
+
+        console.log("item无效");
+        return false
+      }
+
+    }
+
+
+
+
+  }
+
+  static getVideoLinks_bak = async function* () {
     let _url = "https://www.xuexi.cn/lgdata/4426aa87b0b64ac671c96379a3a8bd26/db086044562a57b441c24f2af1c8e101.json"
     let { data: { DataSet: _dataSet } } = await axios.get(_url)
 
@@ -67,6 +108,9 @@ class Tools {
   }
 
   static getWeekPractices = async function* (cookies) {
+
+
+
     let _cookieStr = this.cookieFromJson(cookies)
 
     let _pageNo = 1
@@ -103,20 +147,24 @@ class Tools {
         }
       }
       if (_pageNo == _pageCount) {
-        throw new error("no week practices avalible")
+        throw new Error("no week practices avalible")
       } else {
         _pageNo += 1
+        console.log("题目翻页，休眠1s");
+        await Tools.sleep(1000)
       }
     }
   }
 
   static getEarmrkedPractices = async function* (cookies) {
+
+
     let _cookieStr = this.cookieFromJson(cookies)
 
     let _pageNo = 1
     while (true) {
 
-      let _url = `https://pc-proxy-api.xuexi.cn/api/exam/service/paper/pc/list?pageSize=50&pageNo=${1}`
+      let _url = `https://pc-proxy-api.xuexi.cn/api/exam/service/paper/pc/list?pageSize=50&pageNo=${_pageNo}`
 
       let { data: { data_str: _dataStr } } = await axios.get(_url,
         {
@@ -132,14 +180,17 @@ class Tools {
       let _list = _json["list"]
 
       for (let _p of _list) {
-          if (_p.status == 1) {
-            yield _p
+        if ((_p.status == 1) || (_p.status == 3)) {
+          yield _p
         }
       }
       if (_pageNo == _pageCount) {
-        throw new error("no earmarked practices avalible")
+        throw new Error("no earmarked practices avalible")
+        // yield null
       } else {
         _pageNo += 1
+        console.log("题目翻页，休眠1s");
+        await Tools.sleep(1000)
       }
     }
   }
@@ -234,15 +285,16 @@ class Tools {
         return _scores
       } catch (e) {
         console.log("获取分数详情失败，停1秒 " + e.message);
-        // await this.sleep(1000)
+        //         await this.sleep(1000)
       }
 
     }
-    throw new error("cant acquire score")
+    throw new Error("cant acquire score")
   }
   static async getCurrentScores(cookies) {
     // while (true) {
-    for (let x = 5; x > 0; x++) {
+    console.log("获取分数");
+    for (let x = 5; x > 0; x--) {
       try {
 
         let _cookieStr = this.cookieFromJson(cookies)
@@ -254,7 +306,7 @@ class Tools {
               'Cache-Control': 'no-cache',
               'Cookie': _cookieStr
             }
-          })
+          }).catch((e) => { console.log(e.message); })
 
 
         let _detailClean = _detail.map((elem) => {
@@ -276,12 +328,14 @@ class Tools {
         }
         return _scores
       } catch (e) {
-        console.log("获取分数详情失败，停2秒 " + e.message);
+        console.log("获取分数详情失败，停2秒 ", e.message);
         await this.sleep(2000)
       }
 
     }
-    throw new error("cant acquire score")
+    throw new Error("获取分数失败,超过最大次数")
+    console.log("获取分数失败,超过最大次数");
+    // return null
   }
 
   static cookieFromJson(jsonCookie) {
@@ -310,6 +364,17 @@ class Tools {
         return _remains.toFixed(2)
       }
     }
+  }
+
+  static async sendTelegramMessage(content) {
+    //const httpsAgent = new HttpsProxyAgent(`http://127.0.0.1:15809`);
+
+    let body = {
+      chat_id: "1481070479",
+      text: content
+    }
+
+    await axios.post('https://bot.cat-network.ml/bot5038437427:AAFt861saXCTRC5kZIHCgWXv4cQrpKd7820/sendMessage', body);
   }
 
 }
